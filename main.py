@@ -11,15 +11,26 @@ def drawWeather(image):
     draw = ImageDraw.Draw(image)
     # Get default weather
     res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
-    if len(res) >0:
-        high = res.get('forecasts')[0].get('high')
-        low = res.get('forecasts')[0].get('low')
-        night_wea = res.get('forecasts')[0].get('night').get('brief_text')
-        day_wea = res.get('forecasts')[0].get('day').get('brief_text')
-        icon_night_wea = res.get('forecasts')[0].get('night').get('icon')
-        icon_day_wea = res.get('forecasts')[0].get('day').get('icon')
-        date = res.get('forecasts')[0].get('date')
-        day_week = res.get('forecasts')[0].get('day_of_week')
+
+    tm_hour = time.localtime().tm_hour
+
+    ## 18~2: show weather of next day
+    if (tm_hour >= 18 or tm_hour <=2):
+        index = 1
+    else:
+        index = 0
+
+    if len(res) > (index + 1):
+        forecasts = res.get('forecasts')
+        forecast = forecasts[index]
+        high =      forecast.get('high')
+        low =       forecast.get('low')
+        night_wea = forecast.get('night').get('brief_text')
+        day_wea =   forecast.get('day').get('brief_text')
+        icon_night_wea =    forecast.get('night').get('icon')
+        icon_day_wea =      forecast.get('day').get('icon')
+        date =      forecast.get('date')
+        day_week =  forecast.get('day_of_week')
 
         draw.text((10,5),  date, font=font24, fill=0)
         draw.text((10,35),  'Low: '+low + ' High: ' + high, font=font24, fill=0)
