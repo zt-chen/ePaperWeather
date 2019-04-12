@@ -6,6 +6,36 @@ import time
 from PIL import Image,ImageDraw,ImageFont, ImageOps
 import traceback
 import pywapi
+def drawWeather(image):
+    print("Drawing Weather")
+    draw = ImageDraw.Draw(image)
+    # Get default weather
+    res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
+    if len(res) >0:
+        high = res.get('forecasts')[0].get('high')
+        low = res.get('forecasts')[0].get('low')
+        night_wea = res.get('forecasts')[0].get('night').get('brief_text')
+        day_wea = res.get('forecasts')[0].get('day').get('brief_text')
+        icon_night_wea = res.get('forecasts')[0].get('night').get('icon')
+        icon_day_wea = res.get('forecasts')[0].get('day').get('icon')
+        date = res.get('forecasts')[0].get('date')
+        day_week = res.get('forecasts')[0].get('day_of_week')
+
+        draw.text((10,5),  date, font=font24, fill=0)
+        draw.text((10,35),  'Low: '+low + ' High: ' + high, font=font24, fill=0)
+        draw.text((10,65), "Day: ", font=font24, fill=0)
+        draw.text((120,65), 'Night: ', font=font24, fill=0)
+
+        if(len(icon_day_wea)!=0):
+            icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((40,40))
+            image.paste(icon_image_day, (70,70))    
+
+        if(len(icon_night_wea)!= 0):
+            icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((40,40))
+            image.paste(icon_image_night, (200,70))    
+        return 0
+    else:
+        return 1
 
 try:
     epd = epd2in13.EPD()
@@ -54,35 +84,16 @@ try:
     # epd.init(epd.lut_partial_update)
     font24 = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 24)
     # time_image = Image.new('1', (epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), 255)
-    draw = ImageDraw.Draw(image)
 
-    # Get default weather
-    res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
-    high = res.get('forecasts')[0].get('high')
-    low = res.get('forecasts')[0].get('low')
-    night_wea = res.get('forecasts')[0].get('night').get('brief_text')
-    day_wea = res.get('forecasts')[0].get('day').get('brief_text')
-    icon_night_wea = res.get('forecasts')[0].get('night').get('icon')
-    icon_day_wea = res.get('forecasts')[0].get('day').get('icon')
-    date = res.get('forecasts')[0].get('date')
-    day_week = res.get('forecasts')[0].get('day_of_week')
+    drawWeather(image)
 
-    draw.text((10,5),  date, font=font24, fill=0)
-    draw.text((10,35),  'Low: '+low + ' High: ' + high, font=font24, fill=0)
-    draw.text((10,65), "Day: ", font=font24, fill=0)
-    draw.text((120,65), 'Night: ', font=font24, fill=0)
+
     epd.init(epd.lut_full_update)
     epd.Clear(0xFF)
 
-    if(len(icon_day_wea)!=0):
-        icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((40,40))
-        image.paste(icon_image_day, (70,70))    
-
-    if(len(icon_night_wea)!= 0):
-        icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((40,40))
-        image.paste(icon_image_night, (200,70))    
     while (True):
 
+        draw = ImageDraw.Draw(image)
         # Always Draw the time
         draw.rectangle((180, 5, 250, 35), fill = 255)
         draw.text((180, 5), time.strftime('%H:%M'), font = font24, fill = 0)
@@ -92,44 +103,26 @@ try:
         print("Time:"+str(time_min)+str(time_sec))
         
         if time_min == 0 :
-            epd.init(epd.lut_full_update)
-            epd.Clear(0xFF)
 
             image = Image.new('1', (epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), 255)  # 255: clear the frame
-            draw = ImageDraw.Draw(image)
-            # Get weather from weather api
-            res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
-            if len(res) > 0:
-                high = res.get('forecasts')[0].get('high')
-                low = res.get('forecasts')[0].get('low')
-                night_wea = res.get('forecasts')[0].get('night').get('brief_text')
-                day_wea = res.get('forecasts')[0].get('day').get('brief_text')
-                icon_night_wea = res.get('forecasts')[0].get('night').get('icon')
-                icon_day_wea = res.get('forecasts')[0].get('day').get('icon')
-                date = res.get('forecasts')[0].get('date')
-                day_week = res.get('forecasts')[0].get('day_of_week')
-                # Draw Weather
-            draw.text((10,5),  date , font=font24, fill=0)
-            draw.text((10,35),  'Low: '+low + ' High: ' + high, font=font24, fill=0)
-            draw.text((10,65), "Day: ", font=font24, fill=0)
-            draw.text((120,65), 'Night: ', font=font24, fill=0)
-            if(len(icon_day_wea)!=0):
-                icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((40,40))
-                image.paste(icon_image_day, (70,70))    
-
-            if(len(icon_night_wea)!= 0):
-                icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((40,40))
-                image.paste(icon_image_night, (200,70))
-            print('Full update')
+            res = drawWeather(image)
+            if(res == 0 ):
+                epd.init(epd.lut_full_update)
+                epd.Clear(0xFF)
+                epd.display(epd.getbuffer(image.rotate(180)))
+                print('Full update')
+            else:
+                print('Full update Fail')
+                pass
+                
         else:
             epd.init(epd.lut_partial_update)
+            epd.display(epd.getbuffer(image.rotate(180)))
             print('Partically update')
-
 
 
         # newimage = time_image.crop([10, 10, 120, 50])
         # time_image.paste(newimage, (10,10))  
-        epd.display(epd.getbuffer(image.rotate(180)))
         epd.sleep()
         print('sleep')
         time.sleep(60)
