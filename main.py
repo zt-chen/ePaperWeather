@@ -52,8 +52,7 @@ def getAQI(station_code):
     # Request Get
     req = requests.get(
             "https://api.waqi.info/feed/@%d/" % (station_code),
-            #params={'token': WeatherConfig.AQI_TOKEN})
-            params={'token': 'demo'})
+            params={'token': WeatherConfig.AQI_TOKEN})
 
     if req.status_code == 200 and req.json()['status'] == "ok":
         json = req.json()["data"]
