@@ -8,6 +8,7 @@ import traceback
 import pywapi
 import os
 def drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, nextDay=0):
+    print("Drawing Forecast")
     draw = ImageDraw.Draw(image)
     forecastX = 150 
     forecastY = 5
@@ -32,21 +33,34 @@ def drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, nextDay=
     forecastY = forecastY + 28
     # Draw forecast weather icon
     draw.text((forecastX+5,forecastY), 'Day', font=fontSmall, fill=0)
-    if(len(icon_day_wea)!=0):
+    if(len(icon_day_wea) ==2):
         icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((30,30))
         image.paste(icon_image_day, (forecastX+10,forecastY+25))    
 
     draw.text((forecastX+45,forecastY), 'Night', font=fontSmall, fill=0)
-    if(len(icon_night_wea)!= 0):
+    if(len(icon_night_wea) == 2):
         icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((30,30))
         image.paste(icon_image_night, (forecastX+45+10,forecastY+25))    
 
     # Draw forecast temperature
-    draw.text((forecastX+15,forecastY+30+32),  low + '°'+' ~ ' + high + '°'
-            , font=fontSmall, fill=0)
+    draw.text((forecastX+15,forecastY+30+32),  low + '\xb0 ~ ' + high + '\xb0', font=fontSmall, fill=0)
 
-def drawWeatherCurrent(image):
-    pass
+def drawWeatherCurrent(image, icon, temperature, uv, humidity):
+    print("Drawing Current")
+    startX = 5
+    startY = 5+25 + 5
+
+    draw = ImageDraw.Draw(image)
+
+    if(len(icon) == 2):
+        icon_image = Image.open('./weatherIcons/'+icon+'.bmp').resize((50,50))
+        image.paste(icon_image, (startX,startY))    
+
+    #draw.rectangle((startX, startY, startX+50, startY+50), fill = 0)
+
+    draw.text((startX+ 50 + 5, startY + 2), temperature + '\xb0', font=font24, fill=0)
+    draw.text((startX+ 50 + 5, startY + 2 + 30 + 2), "UV: " + uv, font=fontSmall, fill=0)
+
 
 def drawWeather(image):
     print("Drawing Weather")
@@ -78,12 +92,36 @@ def drawWeather(image):
         draw.text((10,5),  date, font=font24, fill=0)
         '''
         drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, index)
-
-        return 0
     else:
         return 1
 
     # Draw Current Weather
+    current = res.get('current_conditions')
+    if current != None:
+        currentIcon = current.get('icon')
+        temperature = current.get('temperature')
+        humidity    = current.get('humidity')
+        uv          = current.get('uv').get('text')
+
+        drawWeatherCurrent(image, currentIcon, temperature, uv, humidity)
+
+    else:
+        return 1
+
+    return 0
+
+
+def drawDateTime(image, drawData=True, drawTime=True):
+    textX = 5
+    textY = 5
+    draw = ImageDraw.Draw(image)
+    if drawData == True:
+        draw.rectangle((textX, textY, textX+60, textY+25), fill = 255)
+        draw.text((textX, textY), time.strftime('%b %d'), font = fontMid, fill = 0)
+    if drawTime == True:
+        draw.rectangle((textX+90, textY, textX+90+50, textY+20), fill = 255)
+        draw.text((textX+90, textY), time.strftime('%H:%M'), font = fontMid, fill = 0)
+
 
 
 try:
@@ -134,9 +172,12 @@ try:
     print("Show time")
     # epd.init(epd.lut_partial_update)
     font24 = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 24)
+    fontMid = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 20)
     fontSmall = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 18)
     # time_image = Image.new('1', (epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), 255)
 
+    # Draw Date only
+    drawDateTime(image, True, False)
     drawWeather(image)
 
 
@@ -144,19 +185,21 @@ try:
     epd.Clear(0xFF)
 
     while (True):
+        # Always Draw the time
+        drawDateTime(image, False, True)
 
         draw = ImageDraw.Draw(image)
-        # Always Draw the time
-        # draw.rectangle((180, 5, 250, 35), fill = 255)
-        #draw.text((180, 5), time.strftime('%H:%M'), font = font24, fill = 0)
+
         time_hour = time.localtime().tm_hour
         time_min = time.localtime().tm_min
         time_sec = time.localtime().tm_sec
         print("Time:"+str(time_hour)+":"+str(time_min)+":"+str(time_sec))
         
         if time_min == 0 :
-
             image = Image.new('1', (epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), 255)  # 255: clear the frame
+
+            # Draw date and time
+            drawDateTime(image, False, True)
             res = drawWeather(image)
             if(res == 0 ):
                 epd.init(epd.lut_full_update)
