@@ -7,6 +7,7 @@ from PIL import Image,ImageDraw,ImageFont, ImageOps
 import traceback
 import pywapi
 import os
+import config
 def drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, nextDay=0):
     print("Drawing Forecast")
     draw = ImageDraw.Draw(image)
@@ -66,7 +67,7 @@ def drawWeather(image):
     print("Drawing Weather")
     ## 18~2: show weather of next day
     tm_hour = time.localtime().tm_hour
-    if (tm_hour >= 18 or tm_hour <=2):
+    if (tm_hour >= 18 or tm_hour <=3):
         index = 1
     else:
         index = 0
@@ -91,7 +92,12 @@ def drawWeather(image):
         day_wea =   forecast.get('day').get('brief_text')
         draw.text((10,5),  date, font=font24, fill=0)
         '''
-        drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, index)
+        nextDay = False
+        if (tm_hour >= 18):
+            nextDay = True
+        else:
+            nextDay = False
+        drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, nextDay)
     else:
         return 1
 
@@ -122,8 +128,12 @@ def drawDateTime(image, drawData=True, drawTime=True):
         draw.rectangle((textX+90, textY, textX+90+50, textY+20), fill = 255)
         draw.text((textX+90, textY), time.strftime('%H:%M'), font = fontMid, fill = 0)
 
+def clearImage(image):
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), fill = 255)
 
-
+def getAQI():
+    pass
 try:
     # Beijing Time
     os.environ['TZ'] = 'Asia/Shanghai'
@@ -179,10 +189,10 @@ try:
     # Draw Date only
     drawDateTime(image, True, False)
     drawWeather(image)
+    
+    firstTime = True
 
-
-    epd.init(epd.lut_full_update)
-    epd.Clear(0xFF)
+    #epd.Clear(0xFF)
 
     while (True):
         # Always Draw the time
@@ -196,14 +206,14 @@ try:
         print("Time:"+str(time_hour)+":"+str(time_min)+":"+str(time_sec))
         
         if time_min == 0 :
-            image = Image.new('1', (epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), 255)  # 255: clear the frame
+            clearImage(image) #clear the frame
 
             # Draw date and time
-            drawDateTime(image, False, True)
+            drawDateTime(image, True, True)
             res = drawWeather(image)
             if(res == 0 ):
                 epd.init(epd.lut_full_update)
-                epd.Clear(0xFF)
+                #epd.Clear(0xFF)
                 epd.display(epd.getbuffer(image.rotate(180)))
                 print('Full update')
             else:
@@ -211,9 +221,16 @@ try:
                 pass
                 
         else:
-            epd.init(epd.lut_partial_update)
+            if(firstTime == True):
+                epd.init(epd.lut_full_update)
+                firstTime = False
+                print('First Paint')
+            else:
+                epd.init(epd.lut_partial_update)
+                print('Partically update')
+
             epd.display(epd.getbuffer(image.rotate(180)))
-            print('Partically update')
+
 
 
         # newimage = time_image.crop([10, 10, 120, 50])
