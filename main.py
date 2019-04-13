@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
 
 import epd2in13
@@ -6,11 +6,13 @@ import time
 from PIL import Image,ImageDraw,ImageFont, ImageOps
 import traceback
 import pywapi
+import os
 def drawWeather(image):
     print("Drawing Weather")
     draw = ImageDraw.Draw(image)
     # Get default weather
-    res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
+    #res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
+    res = pywapi.get_weather_from_weather_com('CHXX0008', 'metric')
 
     tm_hour = time.localtime().tm_hour
 
@@ -33,22 +35,52 @@ def drawWeather(image):
         day_week =  forecast.get('day_of_week')
 
         draw.text((10,5),  date, font=font24, fill=0)
-        draw.text((10,35),  'Low: '+low + ' High: ' + high, font=font24, fill=0)
-        draw.text((10,65), "Day: ", font=font24, fill=0)
-        draw.text((120,65), 'Night: ', font=font24, fill=0)
+        #draw.text((10,35),  'Low: '+low + ' High: ' + high, font=font24, fill=0)
+        #draw.text((10,65), "Day: ", font=font24, fill=0)
+        #draw.text((120,65), 'Night: ', font=font24, fill=0)
 
+        forecastX = 150 
+        forecastY = 5
+
+        # Draw the division line
+        lineStart = (forecastX,0)
+        lineEnd = (forecastX, epd2in13.EPD_WIDTH)
+        draw.line([lineStart, lineEnd], fill=0x00, width=2)
+
+        forecastX = forecastX + 3
+        # Draw text today or tomorrow
+        if index == 1:
+            draw.text((forecastX+6,forecastY), "Tomorrow", font=fontSmall, fill=0)
+        else:
+            draw.text((forecastX+21,forecastY), "Today", font=fontSmall, fill=0)
+
+        # Draw the division line
+        lineStart = (forecastX-3,forecastY+25)
+        lineEnd = (epd2in13.EPD_HEIGHT, forecastY+25)
+        draw.line([lineStart, lineEnd], fill=0x00, width=0)
+
+        forecastY = forecastY + 28
+        # Draw forecast weather icon
+        draw.text((forecastX+5,forecastY), 'Day', font=fontSmall, fill=0)
         if(len(icon_day_wea)!=0):
-            icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((40,40))
-            image.paste(icon_image_day, (70,70))    
+            icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((30,30))
+            image.paste(icon_image_day, (forecastX+10,forecastY+25))    
 
+        draw.text((forecastX+45,forecastY), 'Night', font=fontSmall, fill=0)
         if(len(icon_night_wea)!= 0):
-            icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((40,40))
-            image.paste(icon_image_night, (200,70))    
+            icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((30,30))
+            image.paste(icon_image_night, (forecastX+45+10,forecastY+25))    
+
+        # Draw forecast temperature
+        draw.text((forecastX+15,forecastY+30+30),  low + '°'+' ~ ' + high + '°'
+                , font=fontSmall, fill=0)
         return 0
     else:
         return 1
 
 try:
+    # Beijing Time
+    os.environ['TZ'] = 'Asia/Shanghai'
     epd = epd2in13.EPD()
 
     # read bmp file on window
@@ -94,6 +126,7 @@ try:
     print("Show time")
     # epd.init(epd.lut_partial_update)
     font24 = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 24)
+    fontSmall = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 18)
     # time_image = Image.new('1', (epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), 255)
 
     drawWeather(image)
@@ -106,12 +139,12 @@ try:
 
         draw = ImageDraw.Draw(image)
         # Always Draw the time
-        draw.rectangle((180, 5, 250, 35), fill = 255)
-        draw.text((180, 5), time.strftime('%H:%M'), font = font24, fill = 0)
+        # draw.rectangle((180, 5, 250, 35), fill = 255)
+        #draw.text((180, 5), time.strftime('%H:%M'), font = font24, fill = 0)
         time_hour = time.localtime().tm_hour
         time_min = time.localtime().tm_min
         time_sec = time.localtime().tm_sec
-        print("Time:"+str(time_min)+str(time_sec))
+        print("Time:"+str(time_hour)+":"+str(time_min)+":"+str(time_sec))
         
         if time_min == 0 :
 
