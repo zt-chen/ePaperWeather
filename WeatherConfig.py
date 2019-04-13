@@ -1,2 +1,2 @@
 # Token to require AQI data from aqicn.org
-AQI_TOKEN = "YourToken"
+AQI_TOKEN = "demo"#"YourToken"
