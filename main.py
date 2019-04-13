@@ -7,76 +7,84 @@ from PIL import Image,ImageDraw,ImageFont, ImageOps
 import traceback
 import pywapi
 import os
+def drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, nextDay=0):
+    draw = ImageDraw.Draw(image)
+    forecastX = 150 
+    forecastY = 5
+
+    # Draw the division line
+    lineStart = (forecastX,0)
+    lineEnd = (forecastX, epd2in13.EPD_WIDTH)
+    draw.line([lineStart, lineEnd], fill=0x00, width=2)
+
+    forecastX = forecastX + 3
+    # Draw text today or tomorrow
+    if nextDay == 0:
+        draw.text((forecastX+21,forecastY), "Today", font=fontSmall, fill=0)
+    else:
+        draw.text((forecastX+6,forecastY), "Tomorrow", font=fontSmall, fill=0)
+
+    # Draw the division line
+    lineStart = (forecastX-3,forecastY+25)
+    lineEnd = (epd2in13.EPD_HEIGHT, forecastY+25)
+    draw.line([lineStart, lineEnd], fill=0x00, width=0)
+
+    forecastY = forecastY + 28
+    # Draw forecast weather icon
+    draw.text((forecastX+5,forecastY), 'Day', font=fontSmall, fill=0)
+    if(len(icon_day_wea)!=0):
+        icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((30,30))
+        image.paste(icon_image_day, (forecastX+10,forecastY+25))    
+
+    draw.text((forecastX+45,forecastY), 'Night', font=fontSmall, fill=0)
+    if(len(icon_night_wea)!= 0):
+        icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((30,30))
+        image.paste(icon_image_night, (forecastX+45+10,forecastY+25))    
+
+    # Draw forecast temperature
+    draw.text((forecastX+15,forecastY+30+32),  low + '°'+' ~ ' + high + '°'
+            , font=fontSmall, fill=0)
+
+def drawWeatherCurrent(image):
+    pass
+
 def drawWeather(image):
     print("Drawing Weather")
-    draw = ImageDraw.Draw(image)
-    # Get default weather
-    #res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
-    res = pywapi.get_weather_from_weather_com('CHXX0008', 'metric')
-
-    tm_hour = time.localtime().tm_hour
-
     ## 18~2: show weather of next day
+    tm_hour = time.localtime().tm_hour
     if (tm_hour >= 18 or tm_hour <=2):
         index = 1
     else:
         index = 0
 
-    if len(res) > (index + 1):
-        forecasts = res.get('forecasts')
+    draw = ImageDraw.Draw(image)
+    # Get default weather
+    #res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
+    res = pywapi.get_weather_from_weather_com('CHXX0008', 'metric')
+
+    # Draw Forecast
+    forecasts = res.get('forecasts')
+    if forecasts != None and (len(forecasts) > (index + 1)):
         forecast = forecasts[index]
         high =      forecast.get('high')
         low =       forecast.get('low')
-        night_wea = forecast.get('night').get('brief_text')
-        day_wea =   forecast.get('day').get('brief_text')
         icon_night_wea =    forecast.get('night').get('icon')
         icon_day_wea =      forecast.get('day').get('icon')
+        '''
         date =      forecast.get('date')
         day_week =  forecast.get('day_of_week')
-
+        night_wea = forecast.get('night').get('brief_text')
+        day_wea =   forecast.get('day').get('brief_text')
         draw.text((10,5),  date, font=font24, fill=0)
-        #draw.text((10,35),  'Low: '+low + ' High: ' + high, font=font24, fill=0)
-        #draw.text((10,65), "Day: ", font=font24, fill=0)
-        #draw.text((120,65), 'Night: ', font=font24, fill=0)
+        '''
+        drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, index)
 
-        forecastX = 150 
-        forecastY = 5
-
-        # Draw the division line
-        lineStart = (forecastX,0)
-        lineEnd = (forecastX, epd2in13.EPD_WIDTH)
-        draw.line([lineStart, lineEnd], fill=0x00, width=2)
-
-        forecastX = forecastX + 3
-        # Draw text today or tomorrow
-        if index == 1:
-            draw.text((forecastX+6,forecastY), "Tomorrow", font=fontSmall, fill=0)
-        else:
-            draw.text((forecastX+21,forecastY), "Today", font=fontSmall, fill=0)
-
-        # Draw the division line
-        lineStart = (forecastX-3,forecastY+25)
-        lineEnd = (epd2in13.EPD_HEIGHT, forecastY+25)
-        draw.line([lineStart, lineEnd], fill=0x00, width=0)
-
-        forecastY = forecastY + 28
-        # Draw forecast weather icon
-        draw.text((forecastX+5,forecastY), 'Day', font=fontSmall, fill=0)
-        if(len(icon_day_wea)!=0):
-            icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((30,30))
-            image.paste(icon_image_day, (forecastX+10,forecastY+25))    
-
-        draw.text((forecastX+45,forecastY), 'Night', font=fontSmall, fill=0)
-        if(len(icon_night_wea)!= 0):
-            icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((30,30))
-            image.paste(icon_image_night, (forecastX+45+10,forecastY+25))    
-
-        # Draw forecast temperature
-        draw.text((forecastX+15,forecastY+30+30),  low + '°'+' ~ ' + high + '°'
-                , font=fontSmall, fill=0)
         return 0
     else:
         return 1
+
+    # Draw Current Weather
+
 
 try:
     # Beijing Time
