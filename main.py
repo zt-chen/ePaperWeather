@@ -7,7 +7,8 @@ from PIL import Image,ImageDraw,ImageFont, ImageOps
 import traceback
 import pywapi
 import os
-import config
+import WeatherConfig
+import requests
 def drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, nextDay=0):
     print("Drawing Forecast")
     draw = ImageDraw.Draw(image)
@@ -33,12 +34,12 @@ def drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, nextDay=
 
     forecastY = forecastY + 28
     # Draw forecast weather icon
-    draw.text((forecastX+5,forecastY), 'Day', font=fontSmall, fill=0)
+    draw.text((forecastX+7,forecastY), 'Day', font=fontSmaller, fill=0)
     if(len(icon_day_wea) ==2):
         icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((30,30))
         image.paste(icon_image_day, (forecastX+10,forecastY+25))    
 
-    draw.text((forecastX+45,forecastY), 'Night', font=fontSmall, fill=0)
+    draw.text((forecastX+47,forecastY), 'Night', font=fontSmaller, fill=0)
     if(len(icon_night_wea) == 2):
         icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((30,30))
         image.paste(icon_image_night, (forecastX+45+10,forecastY+25))    
@@ -46,21 +47,56 @@ def drawWeatherForecast(image, icon_night_wea, icon_day_wea, high, low, nextDay=
     # Draw forecast temperature
     draw.text((forecastX+15,forecastY+30+32),  low + '\xb0 ~ ' + high + '\xb0', font=fontSmall, fill=0)
 
+# Get AQI data 
+def getAQI(station_code):
+    # Request Get
+    req = requests.get(
+            "https://api.waqi.info/feed/@%d/" % (station_code),
+            #params={'token': WeatherConfig.AQI_TOKEN})
+            params={'token': 'demo'})
+
+    if req.status_code == 200 and req.json()['status'] == "ok":
+        json = req.json()["data"]
+        iaqi = json['iaqi']
+        result = {
+                'idx': json['idx'],
+                'city': json.get('city', ''),
+                'aqi': json['aqi'],
+                'dominentpol': json.get("dominentpol", ''),
+                'time': json['time']['s'],
+                'iaqi': [{'p': item, 'v': iaqi[item]['v']} for item in iaqi]
+                }
+        return result
+    else:
+        return {}
+
+# Draw AQI Data, Default, Chaoyang Olympic Sports Center
+def drawAQI(image, X, Y, font, station_code=450):
+    aqiData = getAQI(station_code)
+    if len(aqiData) > 0:
+        print ("Got AQI:"+str(aqiData.get('aqi')))
+        draw = ImageDraw.Draw(image)
+        draw.text((X, Y), "AQI: "+str(aqiData.get('aqi')), 
+                font=font, fill = 0)
+    else:
+        print("Get AQI failed")
+
 def drawWeatherCurrent(image, icon, temperature, uv, humidity):
     print("Drawing Current")
-    startX = 5
+    startX = 8
     startY = 5+25 + 5
 
     draw = ImageDraw.Draw(image)
 
     if(len(icon) == 2):
         icon_image = Image.open('./weatherIcons/'+icon+'.bmp').resize((50,50))
-        image.paste(icon_image, (startX,startY))    
+        image.paste(icon_image, (startX,startY+5))    
 
-    #draw.rectangle((startX, startY, startX+50, startY+50), fill = 0)
+    #draw.rectangle((startX, startY+8, startX+50, startY+8+50), fill = 0)
 
-    draw.text((startX+ 50 + 5, startY + 2), temperature + '\xb0', font=font24, fill=0)
-    draw.text((startX+ 50 + 5, startY + 2 + 30 + 2), "UV: " + uv, font=fontSmall, fill=0)
+    draw.text((startX+ 50 + 5, startY + 1), temperature + '\xb0', font=font24, fill=0)
+    draw.text((startX+ 50 + 5, startY + 1 + 27 + 1), "UV: " + uv, font=fontSmall, fill=0)
+    drawAQI(image, startX+50+5, startY+1+26+1+20, font=fontSmall, station_code=450)
 
 
 def drawWeather(image):
@@ -132,8 +168,10 @@ def clearImage(image):
     draw = ImageDraw.Draw(image)
     draw.rectangle((0, 0, epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), fill = 255)
 
-def getAQI():
-    pass
+
+
+
+
 try:
     # Beijing Time
     os.environ['TZ'] = 'Asia/Shanghai'
@@ -184,6 +222,7 @@ try:
     font24 = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 24)
     fontMid = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 20)
     fontSmall = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 18)
+    fontSmaller = ImageFont.truetype('/usr/share/fonts/truetype/wqy/wqy-microhei.ttc', 16)
     # time_image = Image.new('1', (epd2in13.EPD_HEIGHT, epd2in13.EPD_WIDTH), 255)
 
     # Draw Date only
