@@ -1,6 +1,9 @@
 # E-paper Weather Application
 
 ## Introduction
+
+![](./Example.JPG)
+
 This python application shows weather information of Beijing on you e-paper display connected to raspberry pi
 
 The weather information comes from weather.com and AQI data comes from aqicn.org. (API token needed, you can get one from http://aqicn.org/data-platform/token/#/)
