@@ -35,12 +35,12 @@ def drawWeatherForecast(draw, image, icon_night_wea, icon_day_wea, high, low, ne
     # Draw forecast weather icon
     draw.text((forecastX+7,forecastY), 'Day', font=fontSmaller, fill=0)
     if(len(icon_day_wea) ==2):
-        icon_image_day = Image.open('./weatherIcons/'+icon_day_wea+'.bmp').resize((30,30))
+        icon_image_day = Image.open(CURRENT_DIR + '/weatherIcons/'+icon_day_wea+'.bmp').resize((30,30))
         image.paste(icon_image_day, (forecastX+10,forecastY+25))    
 
     draw.text((forecastX+47,forecastY), 'Night', font=fontSmaller, fill=0)
     if(len(icon_night_wea) == 2):
-        icon_image_night = Image.open('./weatherIcons/'+icon_night_wea+'.bmp').resize((30,30))
+        icon_image_night = Image.open(CURRENT_DIR + '/weatherIcons/'+icon_night_wea+'.bmp').resize((30,30))
         image.paste(icon_image_night, (forecastX+45+10,forecastY+25))    
 
     # Draw forecast temperature
@@ -84,7 +84,7 @@ def drawWeatherCurrent(draw, image, icon, temperature, uv, humidity):
     startY = 5+25 + 5
 
     if(len(icon) == 2):
-        icon_image = Image.open('./weatherIcons/'+icon+'.bmp').resize((50,50))
+        icon_image = Image.open(CURRENT_DIR + '/weatherIcons/'+icon+'.bmp').resize((50,50))
         image.paste(icon_image, (startX,startY+5))    
 
     #draw.rectangle((startX, startY+8, startX+50, startY+8+50), fill = 0)
@@ -169,6 +169,7 @@ try:
     os.environ['TZ'] = 'Asia/Shanghai'
     epd = epd2in13.EPD()
 
+    CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
     # read bmp file on window
     '''
     print("read bmp file on window")
