@@ -22,6 +22,8 @@ else:
 
 
 CITY = 'Beijing,CN'
+lat = 39.91
+lon = 116.4
 current_tz=timezone('Asia/Shanghai')
 owm = pyowm.OWM(WeatherConfig.OWM_API_KEY)
 
@@ -205,7 +207,8 @@ def drawWeather(draw, image):
     currentIcon = w.get_weather_icon_name()
     temperature = str(int(w.get_temperature('celsius')['temp']))
     humidity = str(int(w.get_humidity()))
-    uv = "0"
+    uvi = owm.uvindex_around_coords(lat, lon)
+    uv = str(int(uvi.get_value()))
 
     drawWeatherCurrent(draw, image, currentIcon, temperature, uv, humidity)
 
