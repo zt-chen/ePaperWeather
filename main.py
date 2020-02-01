@@ -1,14 +1,31 @@
 #!/usr/bin/python3
 # -*- coding:utf-8 -*-
-
-import epd2in13
 import time
 from PIL import Image,ImageDraw,ImageFont, ImageOps
 import traceback
-import pywapi
 import os
 import WeatherConfig
 import requests
+import pyowm
+from datetime import datetime
+from datetime import timedelta
+import pytz
+from pytz import timezone
+
+TEST = WeatherConfig.TEST
+
+if TEST:
+    import matplotlib.pyplot as plt  # test
+    import epd2in13_test as epd2in13
+else:
+    import epd2in13
+
+
+CITY = 'Beijing,CN'
+current_tz=timezone('Asia/Shanghai')
+owm = pyowm.OWM(WeatherConfig.OWM_API_KEY)
+
+
 def drawWeatherForecast(draw, image, icon_night_wea, icon_day_wea, high, low, nextDay=0):
     print("Drawing Forecast")
     forecastX = 150 
@@ -33,13 +50,16 @@ def drawWeatherForecast(draw, image, icon_night_wea, icon_day_wea, high, low, ne
 
     forecastY = forecastY + 28
     # Draw forecast weather icon
-    draw.text((forecastX+7,forecastY), 'Day', font=fontSmaller, fill=0)
-    if(len(icon_day_wea) ==2):
+    if nextDay == 0:
+        draw.text((forecastX+7,forecastY), 'Now', font=fontSmaller, fill=0)
+    else:
+        draw.text((forecastX+7,forecastY), 'Day', font=fontSmaller, fill=0)
+    if(len(icon_day_wea) ==3):
         icon_image_day = Image.open(CURRENT_DIR + '/weatherIcons/'+icon_day_wea+'.bmp').resize((30,30))
         image.paste(icon_image_day, (forecastX+10,forecastY+25))    
 
     draw.text((forecastX+47,forecastY), 'Night', font=fontSmaller, fill=0)
-    if(len(icon_night_wea) == 2):
+    if(len(icon_night_wea) == 3):
         icon_image_night = Image.open(CURRENT_DIR + '/weatherIcons/'+icon_night_wea+'.bmp').resize((30,30))
         image.paste(icon_image_night, (forecastX+45+10,forecastY+25))    
 
@@ -83,7 +103,7 @@ def drawWeatherCurrent(draw, image, icon, temperature, uv, humidity):
     startX = 8
     startY = 5+25 + 5
 
-    if(len(icon) == 2):
+    if(len(icon) == 3):
         icon_image = Image.open(CURRENT_DIR + '/weatherIcons/'+icon+'.bmp').resize((50,50))
         image.paste(icon_image, (startX,startY+5))    
 
@@ -104,17 +124,71 @@ def drawWeather(draw, image):
         index = 0
 
     # Get default weather
-    #res = pywapi.get_weather_from_weather_com('UKXX8845', 'metric')
-    res = pywapi.get_weather_from_weather_com('CHXX0008', 'metric')
 
     # Draw Forecast
-    forecasts = res.get('forecasts')
-    if forecasts != None and (len(forecasts) > (index + 1)):
-        forecast = forecasts[index]
-        high =      forecast.get('high')
-        low =       forecast.get('low')
-        icon_night_wea =    forecast.get('night').get('icon')
-        icon_day_wea =      forecast.get('day').get('icon')
+    nextDay = False
+    if (tm_hour >= 18):
+        nextDay = True
+    else:
+        nextDay = False
+
+    observation = owm.weather_at_place(CITY)
+    w = observation.get_weather()
+
+    nextDay = True
+    if (nextDay == False):
+        date_night = datetime.now().replace(hour=19, minute=0, second=0, microsecond=0)
+        forecast = owm.three_hours_forecast(CITY).get_weather_at(date_night)
+        tprt = w.get_temperature('celsius')
+        high = str(int(tprt['temp_max']))
+        low  = str(int(tprt['temp_min']))
+        day_wea = w.get_status()
+        night_wea = forecast.get_status()
+        icon_day_wea = w.get_weather_icon_name()
+        icon_night_wea = forecast.get_weather_icon_name()
+    else:
+        tmr_morning = pyowm.timeutils.tomorrow().replace(hour=9)
+        tmr_night = pyowm.timeutils.tomorrow().replace(hour=19)
+        tmr = pyowm.timeutils.tomorrow().replace(hour=0, minute=0, second=0, microsecond=0)
+        tmr = tmr.replace(tzinfo=current_tz)
+        tmrtmr = tmr + timedelta(days=1)
+        forecast_m = owm.three_hours_forecast(CITY).get_weather_at(tmr_morning)
+        forecast_n = owm.three_hours_forecast(CITY).get_weather_at(tmr_night)
+        forecast = owm.three_hours_forecast(CITY).get_forecast().get_weathers()
+
+        # Get the temperature of tmr from 3h data
+        high = -60.0
+        low = 60.0
+        for i in forecast:
+            time_f = i.get_reference_time('date')
+            
+            #time = utc.localize(time)
+            #tmr = utc.localize(tmr)
+            #tmrtmr = utc.localize(tmrtmr)
+            if time_f >= tmr and time_f < tmrtmr:
+                tprt = i.get_temperature('celsius')
+                tmp_max = tprt['temp_max']
+                tmp_min = tprt['temp_min']
+                if TEST:
+                    print(str(tmp_min))
+
+                if tmp_max > high:
+                    high = tmp_max
+                if tmp_min < low:
+                    low = tmp_min
+
+        high = str(int(high))
+        low  = str(int(low))
+        day_wea = forecast_m.get_status()
+        night_wea = forecast_n.get_status()
+        icon_day_wea = forecast_m.get_weather_icon_name()
+        icon_night_wea = forecast_n.get_weather_icon_name()
+
+        # forecast = forecasts[index]
+        # high =      forecast.get('high')
+        # low =       forecast.get('low')
+        # icon_night_wea =    forecast.get('night').get('icon')
+        # icon_day_wea =      forecast.get('day').get('icon')
         '''
         date =      forecast.get('date')
         day_week =  forecast.get('day_of_week')
@@ -122,27 +196,18 @@ def drawWeather(draw, image):
         day_wea =   forecast.get('day').get('brief_text')
         draw.text((10,5),  date, font=font24, fill=0)
         '''
-        nextDay = False
-        if (tm_hour >= 18):
-            nextDay = True
-        else:
-            nextDay = False
-        drawWeatherForecast(draw, image, icon_night_wea, icon_day_wea, high, low, nextDay)
-    else:
-        return 1
+
+    drawWeatherForecast(draw, image, icon_night_wea, icon_day_wea, high, low, nextDay)
+
 
     # Draw Current Weather
-    current = res.get('current_conditions')
-    if current != None:
-        currentIcon = current.get('icon')
-        temperature = current.get('temperature')
-        humidity    = current.get('humidity')
-        uv          = current.get('uv').get('text')
 
-        drawWeatherCurrent(draw, image, currentIcon, temperature, uv, humidity)
+    currentIcon = w.get_weather_icon_name()
+    temperature = str(int(w.get_temperature('celsius')['temp']))
+    humidity = str(int(w.get_humidity()))
+    uv = "0"
 
-    else:
-        return 1
+    drawWeatherCurrent(draw, image, currentIcon, temperature, uv, humidity)
 
     return 0
 
@@ -167,7 +232,8 @@ def clearImage(draw):
 try:
     # Beijing Time
     os.environ['TZ'] = 'Asia/Shanghai'
-    epd = epd2in13.EPD()
+    if not TEST:
+        epd = epd2in13.EPD()
 
     CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
     # read bmp file on window
@@ -235,38 +301,44 @@ try:
         time_min = time.localtime().tm_min
         time_sec = time.localtime().tm_sec
         print("Time:"+str(time_hour)+":"+str(time_min)+":"+str(time_sec))
-        
-        if time_min == 0 :
-            clearImage(draw) #clear the frame
-
-            # Draw date and time
+        if TEST:
             drawDateTime(draw, True, True)
             res = drawWeather(draw, image)
-            if(res == 0 ):
-                epd.init(epd.lut_full_update)
-                #epd.Clear(0xFF)
-                epd.display(epd.getbuffer(image.rotate(180)))
-                print('Full update')
-            else:
-                print('Full update Fail')
-                pass
-                
+            imgplot = plt.imshow(image)
+            plt.show()
         else:
-            if(firstTime == True):
-                epd.init(epd.lut_full_update)
-                firstTime = False
-                print('First Paint')
-            else:
-                epd.init(epd.lut_partial_update)
-                print('Partically update')
+            if time_min == 0 :
+                clearImage(draw) #clear the frame
 
-            epd.display(epd.getbuffer(image.rotate(180)))
+                # Draw date and time
+                drawDateTime(draw, True, True)
+                res = drawWeather(draw, image)
+                if(res == 0 ):
+                    epd.init(epd.lut_full_update)
+                    #epd.Clear(0xFF)
+                    epd.display(epd.getbuffer(image.rotate(180)))
+                    print('Full update')
+                else:
+                    print('Full update Fail')
+                    pass
+                    
+            else:
+                if(firstTime == True):
+                    epd.init(epd.lut_full_update)
+                    firstTime = False
+                    print('First Paint')
+                else:
+                    epd.init(epd.lut_partial_update)
+                    print('Partically update')
+                epd.display(epd.getbuffer(image.rotate(180)))
 
 
 
         # newimage = time_image.crop([10, 10, 120, 50])
         # time_image.paste(newimage, (10,10))  
-        epd.sleep()
+
+        if not TEST:
+            epd.sleep()
         print('sleep')
         time.sleep(60)
 
@@ -275,7 +347,8 @@ try:
         
 except:
     print( 'traceback.format_exc():\n%s',traceback.format_exc())
-    epd.sleep()
+    if not TEST:
+        epd.sleep()
     print('sleep')
     exit()
 
